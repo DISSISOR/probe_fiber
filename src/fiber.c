@@ -9,7 +9,7 @@
 void fiber_yield(void) {
     struct Scheduler *scheduler = get_current_scheduler();
     scheduler->current_fiber->state = FiberStateSuspended;
-    execution_context_switch(&scheduler->current_fiber->ctx, &scheduler->ctx);
+    execution_context_switch(&scheduler->current_fiber->ctx, &scheduler->ctx, NULL);
     return;
 }
 
@@ -45,6 +45,6 @@ void *fiber_run(fiberCode code, void *data) {
         .len = 0,
         .fibers = queue,
     };
-    execution_context_switch(&scheduler->ctx, &fiber.ctx);
+    execution_context_switch(&scheduler->ctx, &fiber.ctx, fiber.data);
 }
 

@@ -29,4 +29,6 @@ popq %r12
 popq %rbx
 popq %rbp
 
+mov %rdx, %rdi
+
 retq

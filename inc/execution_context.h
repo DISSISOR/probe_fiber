@@ -7,6 +7,6 @@ struct ExecutionContext {
     void *rsp;
 };
 
-extern void execution_context_switch(struct ExecutionContext *from, struct ExecutionContext *to);
+extern void execution_context_switch(struct ExecutionContext *from, struct ExecutionContext *to, void* data);
 
 #endif // EXECUTION_CONTEXT_H_INCLUDED
