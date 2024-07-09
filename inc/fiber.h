@@ -11,16 +11,24 @@ enum FiberState {
     FiberStateTerminated,
 };
 
-typedef void *(*fiberCode)(void*);
+typedef void (fiberCode)(void*);
+// typedef void (fiberJoinCallback)(void);
 
 struct Fiber {
-    struct ExecutionContext ctx;
-    void *(*procedure)(void*);
+    fiberCode *procedure;
+    // fiberJoinCallback *join_cb;
     void *data;
+    struct ExecutionContext ctx;
     enum FiberState state;
 };
 
+struct FiberJoinHandle {
+    struct Fiber *fiber;
+};
+
 void fiber_yield(void);
-void *fiber_run(fiberCode code, void *data);
+void fiber_run(fiberCode code, void *data);
+struct FiberJoinHandle fiber_add(fiberCode code, void* data);
+void fiber_join(struct FiberJoinHandle handle);
 
 #endif // FIBER_H_INCLUDED

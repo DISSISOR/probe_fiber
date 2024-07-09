@@ -4,15 +4,23 @@
 #include <stddef.h>
 
 #include "execution_context.h"
+#include "fiber.h"
 
-struct Fiber;
+struct FiberListNode {
+    struct FiberListNode *next;
+    struct Fiber fiber;
+};
+
+struct FiberList {
+    struct FiberListNode *head;
+    struct FiberListNode *tail;
+    size_t len;
+};
 
 struct Scheduler {
-    struct Fiber *fibers;
-    size_t len;
-    size_t capacity;
     struct ExecutionContext ctx;
     struct Fiber *current_fiber;
+    struct FiberList fiber_queue;
 };
 
 struct Scheduler* get_current_scheduler();

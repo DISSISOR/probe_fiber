@@ -1,4 +1,5 @@
 #include "scheduler.h"
+#include "fiber.h"
 
 static struct Scheduler current_scheduler;
 

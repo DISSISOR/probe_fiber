@@ -18,8 +18,8 @@ pushq %r13
 pushq %r14
 pushq %r15
 
-movq  %rsp, (%rdi)
 # загрузить новый rsp
+movq  %rsp, (%rdi)
 movq (%rsi), %rsp
 
 popq %r15
