@@ -17,6 +17,8 @@ int main(int argc, char **argv) {
     for (int i=0; i < RES_SIZE; i++) {
         if (res[i] != i) {
             fprintf(stderr, "WRONG: res[%d]=%d\n", i, res[i]);
+        } else {
+            fprintf(stdout, "res[%d]=%d\n", i, res[i]);
         }
     }
     return 0;

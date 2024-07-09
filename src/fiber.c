@@ -84,7 +84,7 @@ void fiber_run(fiberCode code, void *data) {
                 struct FiberList *queue = &sch->fiber_queue;
                 sch->current_fiber = &queue->head->fiber;
                 queue->len--;
-                if (queue->len == 0) {
+                if (queue->len != 0) {
                     queue->head = queue->head->next;
                 } else {
                     goto finalize;
