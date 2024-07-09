@@ -1,5 +1,6 @@
 #include "fiber.h"
 
+#include <stddef.h>
 #include <stdlib.h>
 #include <sys/mman.h>
 
@@ -27,20 +28,30 @@ static void proxy_ctx_switch() {
     execution_context_switch(&sch->current_fiber->ctx, &sch->ctx, NULL);
 }
 
-static inline struct FiberListNode* reschedule(struct Scheduler *sch, struct Fiber fiber) {
-    struct FiberListNode *new_node = malloc(sizeof *new_node);
-    // FIXME: hanlde properly
-    if (!new_node) exit(1);
-    new_node->fiber = fiber;
+static inline struct FiberListNode* fiber_get_node(const struct Fiber *fiber) {
+    enum { OFFSET = offsetof(struct FiberListNode, fiber) };
+    struct FiberListNode *node = (struct FiberListNode*)((char*)(fiber) - OFFSET);
+    return node;
+}
+
+static inline void fiber_deinit(struct Fiber *fiber) {
+    struct FiberListNode *node = fiber_get_node(fiber);
+    munmap(fiber->stack_view.stack, fiber->stack_view.size);
+    free(node);
+}
+
+static inline struct FiberListNode* reschedule(struct Scheduler *sch, struct Fiber* fiber) {
+    // struct FiberListNode *new_node = malloc(sizeof *new_node);
+    struct FiberListNode *node = fiber_get_node(fiber);
     struct FiberListNode *prev_tail = sch->fiber_queue.tail;
     if (!prev_tail) {
-        sch->fiber_queue.head = sch->fiber_queue.tail = new_node;
+        sch->fiber_queue.head = sch->fiber_queue.tail = node;
     } else {
-        prev_tail->next = new_node;
-        sch->fiber_queue.tail = new_node;
+        prev_tail->next = node;
+        sch->fiber_queue.tail = node;
     }
     sch->fiber_queue.len++;
-    return new_node;
+    return node;
 }
 
 void fiber_run(fiberCode code, void *data) {
@@ -51,54 +62,72 @@ void fiber_run(fiberCode code, void *data) {
     /* flags */MAP_PRIVATE | MAP_ANONYMOUS,
     /* fd */-1, /* offset */ 0);
     void *stack_base = (char*)stack + stack_size;
-    struct Fiber fiber = {
+    struct FiberListNode *node = malloc(sizeof(node[0]));
+    if (NULL == node) {
+        exit(1);
+    };
+    node->fiber = (struct Fiber) {
         .ctx = {
             .rsp = stack_base - sizeof(struct FullContext),
         },
         .procedure = code,
         .data = data,
+        .state = FiberStateSuspended,
     };
     void *ret_addr = stack_base - 16;
-    // void (*)(void);
-    // *( void(*)(void) )ret_addr = proxy_ctx_switch;
-    // *ret_addr = proxy_ctx_switch;
     * (( void(**)(void) ) ret_addr) = proxy_ctx_switch;
-    const size_t queue_cap = 100;
-    struct Fiber *queue = malloc(queue_cap * sizeof(*queue));
-    // FIXME: hanlde properly
-    if (!queue) exit(1);
     *sch = (struct Scheduler) {
-        .current_fiber = &fiber,
+        .current_fiber = &node->fiber,
         .fiber_queue = {
             .head = NULL,
             .tail = NULL,
             .len = 0,
         }
     };
-    execution_context_switch(&sch->ctx, &fiber.ctx, fiber.data);
+    sch->terminated_count = 0;
+    sch->terminated_cap = 100;
+    sch->terminated = malloc(sch->terminated_cap * sizeof(sch->terminated[0]));
+    if (NULL == sch->terminated) {
+        exit(1);
+    }
+    // reschedule(sch, sch->current_fiber);
+    execution_context_switch(&sch->ctx, &sch->current_fiber->ctx, &sch->current_fiber->data);
     for (;;) {
         switch (sch->current_fiber->state) {
             case FiberStateSuspended:
                 // Reschedule and get next fiber
-                (void) reschedule(sch, *sch->current_fiber);
+                (void) reschedule(sch, sch->current_fiber);
                 struct FiberList *queue = &sch->fiber_queue;
                 sch->current_fiber = &queue->head->fiber;
                 queue->len--;
-                if (queue->len != 0) {
+                if (queue->len >= 0) {
                     queue->head = queue->head->next;
                 } else {
-                    goto finalize;
+                    // goto finalize;
                 }
                 break;
             case FiberStateRunning:
                 unreachable();
                 break;
             case FiberStateTerminated:
+                if (sch->terminated_cap <= sch->terminated_count) {
+                    sch->terminated_cap *= 2;
+                    const typeof(sch->terminated) tmp = realloc(sch->terminated, sch->terminated_cap);
+                    if (NULL == tmp) {
+                        exit(1);
+                    }
+                    sch->terminated = tmp;
+                }
+                sch->terminated[sch->terminated_count++] = sch->current_fiber;
+
                 queue = &sch->fiber_queue;
                 sch->current_fiber = &queue->head->fiber;
-                queue->head = queue->head->next;
                 queue->len--;
-                // goto finalize;
+                if (queue->len >= 0) {
+                    queue->head = queue->head->next;
+                } else {
+                    goto finalize;
+                }
                 break;
             default:
                 unreachable();
@@ -107,6 +136,11 @@ void fiber_run(fiberCode code, void *data) {
     }
     // Clear resources
     finalize:
+    for (size_t i=0; i < sch->terminated_count; i++) {
+        struct Fiber *f = sch->terminated[i];
+        fiber_deinit(f);
+    }
+    free(sch->terminated);
 }
 
 struct FiberJoinHandle fiber_add(fiberCode code, void* data) {
@@ -117,7 +151,11 @@ struct FiberJoinHandle fiber_add(fiberCode code, void* data) {
     /* flags */MAP_PRIVATE | MAP_ANONYMOUS,
     /* fd */-1, /* offset */ 0);
     void *stack_base = (char*)stack + stack_size;
-    struct Fiber fiber = {
+    struct FiberListNode *node = malloc(sizeof(node[0]));
+    if (NULL == node) {
+        exit(1);
+    }
+    node->fiber = (struct Fiber) {
         .ctx = {
             .rsp = stack_base - sizeof(struct FullContext),
         },
@@ -127,7 +165,7 @@ struct FiberJoinHandle fiber_add(fiberCode code, void* data) {
     void *ret_addr = stack_base - 16;
     // *(fiberCode**)ret_addr = code;
     * (( void(**)(void) ) ret_addr) = proxy_ctx_switch;
-    struct FiberListNode* new_node = reschedule(sch, fiber);
+    struct FiberListNode* new_node = reschedule(sch, &node->fiber);
     return (struct FiberJoinHandle){
         .fiber = &new_node->fiber,
     };

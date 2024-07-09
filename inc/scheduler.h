@@ -14,13 +14,16 @@ struct FiberListNode {
 struct FiberList {
     struct FiberListNode *head;
     struct FiberListNode *tail;
-    size_t len;
+    ptrdiff_t len;
 };
 
 struct Scheduler {
     struct ExecutionContext ctx;
     struct Fiber *current_fiber;
     struct FiberList fiber_queue;
+    struct Fiber **terminated;
+    size_t terminated_count;
+    size_t terminated_cap;
 };
 
 struct Scheduler* get_current_scheduler();

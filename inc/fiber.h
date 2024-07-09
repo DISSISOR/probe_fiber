@@ -3,6 +3,8 @@
 
 #include "execution_context.h"
 
+#include <stddef.h>
+
 struct Scheduler;
 
 enum FiberState {
@@ -11,15 +13,20 @@ enum FiberState {
     FiberStateTerminated,
 };
 
+struct StackView {
+    void *stack;
+    size_t size;
+};
+
 typedef void (fiberCode)(void*);
 // typedef void (fiberJoinCallback)(void);
 
 struct Fiber {
     fiberCode *procedure;
-    // fiberJoinCallback *join_cb;
     void *data;
     struct ExecutionContext ctx;
     enum FiberState state;
+    struct StackView stack_view;
 };
 
 struct FiberJoinHandle {
