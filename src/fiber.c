@@ -56,24 +56,23 @@ static inline struct FiberListNode* reschedule(struct Scheduler *sch, struct Fib
 
 void fiber_run(fiberCode code, void *data) {
     struct Scheduler *const sch = get_current_scheduler();
-    size_t stack_size = 1024  * 1024 * 10;
-    volatile void *const stack = mmap(/* address */ NULL, /* size */ stack_size,
-    /* protection */PROT_READ | PROT_WRITE,
-    /* flags */MAP_PRIVATE | MAP_ANONYMOUS,
-    /* fd */-1, /* offset */ 0);
-    void *stack_base = (char*)stack + stack_size;
     struct FiberListNode *node = malloc(sizeof(node[0]));
     if (NULL == node) {
         exit(1);
     };
-    node->fiber = (struct Fiber) {
-        .ctx = {
+    node->fiber.stack_view.size  = 1024  * 1024 * 10;
+    node->fiber.stack_view.stack = mmap(/* address */ NULL, /* size */ node->fiber.stack_view.size,
+    /* protection */PROT_READ | PROT_WRITE,
+    /* flags */MAP_PRIVATE | MAP_ANONYMOUS,
+    /* fd */-1, /* offset */ 0);
+    void *stack_base = (char*)node->fiber.stack_view.stack + node->fiber.stack_view.size;
+    node->fiber.ctx = (struct ExecutionContext){
             .rsp = stack_base - sizeof(struct FullContext),
-        },
-        .procedure = code,
-        .data = data,
-        .state = FiberStateSuspended,
     };
+    node->fiber.procedure = code;
+    node->fiber.data = data;
+    node->fiber.state = FiberStateSuspended;
+
     void *ret_addr = stack_base - 16;
     * (( void(**)(void) ) ret_addr) = proxy_ctx_switch;
     *sch = (struct Scheduler) {
@@ -112,7 +111,7 @@ void fiber_run(fiberCode code, void *data) {
             case FiberStateTerminated:
                 if (sch->terminated_cap <= sch->terminated_count) {
                     sch->terminated_cap *= 2;
-                    const typeof(sch->terminated) tmp = realloc(sch->terminated, sch->terminated_cap);
+                    const auto tmp = realloc(sch->terminated, sch->terminated_cap);
                     if (NULL == tmp) {
                         exit(1);
                     }
@@ -145,25 +144,23 @@ void fiber_run(fiberCode code, void *data) {
 
 struct FiberJoinHandle fiber_add(fiberCode code, void* data) {
     struct Scheduler *const sch = get_current_scheduler();
-    size_t stack_size = 1024  * 1024 * 10;
-    volatile void *const stack = mmap(/* address */ NULL, /* size */ stack_size,
-    /* protection */PROT_READ | PROT_WRITE,
-    /* flags */MAP_PRIVATE | MAP_ANONYMOUS,
-    /* fd */-1, /* offset */ 0);
-    void *stack_base = (char*)stack + stack_size;
     struct FiberListNode *node = malloc(sizeof(node[0]));
     if (NULL == node) {
         exit(1);
-    }
-    node->fiber = (struct Fiber) {
-        .ctx = {
-            .rsp = stack_base - sizeof(struct FullContext),
-        },
-        .procedure = code,
-        .data = data,
     };
+    node->fiber.stack_view.size  = 1024  * 1024 * 10;
+    node->fiber.stack_view.stack = mmap(/* address */ NULL, /* size */ node->fiber.stack_view.size,
+    /* protection */PROT_READ | PROT_WRITE,
+    /* flags */MAP_PRIVATE | MAP_ANONYMOUS,
+    /* fd */-1, /* offset */ 0);
+    void *stack_base = (char*)node->fiber.stack_view.stack + node->fiber.stack_view.size;
+    node->fiber.ctx = (struct ExecutionContext){
+            .rsp = stack_base - sizeof(struct FullContext),
+    };
+    node->fiber.procedure = code;
+    node->fiber.data = data;
+    node->fiber.state = FiberStateSuspended;
     void *ret_addr = stack_base - 16;
-    // *(fiberCode**)ret_addr = code;
     * (( void(**)(void) ) ret_addr) = proxy_ctx_switch;
     struct FiberListNode* new_node = reschedule(sch, &node->fiber);
     return (struct FiberJoinHandle){
