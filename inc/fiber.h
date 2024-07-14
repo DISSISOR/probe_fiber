@@ -2,8 +2,7 @@
 #define FIBER_H_INCLUDED
 
 #include "execution_context.h"
-
-#include <stddef.h>
+#include "stack.h"
 
 struct Scheduler;
 
@@ -11,11 +10,6 @@ enum FiberState {
     FiberStateRunning,
     FiberStateSuspended,
     FiberStateTerminated,
-};
-
-struct StackView {
-    void *stack;
-    size_t size;
 };
 
 typedef void (fiberCode)(void*);

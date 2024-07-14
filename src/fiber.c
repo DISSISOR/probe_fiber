@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 
+#include "common.h"
 #include "execution_context.h"
 #include "scheduler.h"
 
@@ -21,22 +22,25 @@ struct FullContext {
     void *rip;
 };
 
+struct StackPool stack_pool;
+
+[[noreturn]]
 static void proxy_ctx_switch() {
     struct Scheduler *const sch = get_current_scheduler();
     sch->current_fiber->procedure(sch->current_fiber->data);
     sch->current_fiber->state = FiberStateTerminated;
+    stack_pool_return_stack(&stack_pool, sch->current_fiber->stack_view);
     execution_context_switch(&sch->current_fiber->ctx, &sch->ctx, NULL);
+    unreachable();
 }
 
 static inline struct FiberListNode* fiber_get_node(const struct Fiber *fiber) {
-    enum { OFFSET = offsetof(struct FiberListNode, fiber) };
-    struct FiberListNode *node = (struct FiberListNode*)((char*)(fiber) - OFFSET);
-    return node;
+    return CONTAINER_OF(struct FiberListNode, fiber, fiber);
 }
 
 static inline void fiber_deinit(struct Fiber *fiber) {
     struct FiberListNode *node = fiber_get_node(fiber);
-    munmap(fiber->stack_view.stack, fiber->stack_view.size);
+    // munmap(fiber->stack_view.stack, fiber->stack_view.size);
     free(node);
 }
 
@@ -56,17 +60,14 @@ static inline struct FiberListNode* reschedule(struct Scheduler *sch, struct Fib
 
 void fiber_run(fiberCode code, void *data) {
     struct Scheduler *const sch = get_current_scheduler();
+    stack_pool = stack_pool_init(100, 100, 2*1024);
     struct FiberListNode *node = malloc(sizeof(node[0]));
     if (NULL == node) {
         exit(1);
     };
-    node->fiber.stack_view.size  = 1024  * 1024 * 10;
-    node->fiber.stack_view.stack = mmap(/* address */ NULL, /* size */ node->fiber.stack_view.size,
-    /* protection */PROT_READ | PROT_WRITE,
-    /* flags */MAP_PRIVATE | MAP_ANONYMOUS,
-    /* fd */-1, /* offset */ 0);
+    node->fiber.stack_view = stack_pool_get_stack(&stack_pool);
     void *stack_base = (char*)node->fiber.stack_view.stack + node->fiber.stack_view.size;
-    node->fiber.ctx = (struct ExecutionContext){
+    node->fiber.ctx = (struct ExecutionContext) {
             .rsp = stack_base - sizeof(struct FullContext),
     };
     node->fiber.procedure = code;
@@ -111,7 +112,7 @@ void fiber_run(fiberCode code, void *data) {
             case FiberStateTerminated:
                 if (sch->terminated_cap <= sch->terminated_count) {
                     sch->terminated_cap *= 2;
-                    const auto tmp = realloc(sch->terminated, sch->terminated_cap);
+                    struct Fiber** tmp = realloc(sch->terminated, sch->terminated_cap * sizeof(tmp[0]));
                     if (NULL == tmp) {
                         exit(1);
                     }
@@ -140,6 +141,7 @@ void fiber_run(fiberCode code, void *data) {
         fiber_deinit(f);
     }
     free(sch->terminated);
+    stack_pool_deinit(&stack_pool);
 }
 
 struct FiberJoinHandle fiber_add(fiberCode code, void* data) {
@@ -148,11 +150,7 @@ struct FiberJoinHandle fiber_add(fiberCode code, void* data) {
     if (NULL == node) {
         exit(1);
     };
-    node->fiber.stack_view.size  = 1024  * 1024 * 10;
-    node->fiber.stack_view.stack = mmap(/* address */ NULL, /* size */ node->fiber.stack_view.size,
-    /* protection */PROT_READ | PROT_WRITE,
-    /* flags */MAP_PRIVATE | MAP_ANONYMOUS,
-    /* fd */-1, /* offset */ 0);
+    node->fiber.stack_view = stack_pool_get_stack(&stack_pool);
     void *stack_base = (char*)node->fiber.stack_view.stack + node->fiber.stack_view.size;
     node->fiber.ctx = (struct ExecutionContext){
             .rsp = stack_base - sizeof(struct FullContext),

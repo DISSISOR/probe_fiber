@@ -7,6 +7,7 @@ file(GLOB fibers_src
     src/main.c
     src/fiber.c
     src/scheduler.c
+    src/stack.c
     src/execucion_context_switch.S
 )
 include_directories(inc)

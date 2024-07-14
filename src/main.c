@@ -13,6 +13,13 @@ int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
     int res[RES_SIZE] = { 0, };
+#if 0
+    for (size_t i=0; i<10'000; i++) {
+        res[0] = res[1] = res[2] = res[3] = res[4] = 0;
+        res_idx = 0;
+        fiber_run(fst_fiber_code, res);
+    }
+#else
     fiber_run(fst_fiber_code, res);
     for (int i=0; i < RES_SIZE; i++) {
         if (res[i] != i) {
@@ -21,6 +28,7 @@ int main(int argc, char **argv) {
             fprintf(stdout, "res[%d]=%d\n", i, res[i]);
         }
     }
+#endif
     return 0;
 }
 
