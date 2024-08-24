@@ -97,7 +97,7 @@ void fiber_run(fiberCode code, void *data) {
             case FiberStateSuspended:
                 // Reschedule and get next fiber
                 (void) reschedule(sch, sch->current_fiber);
-                struct FiberList *queue = &sch->fiber_queue;
+                struct FiberQueue *queue = &sch->fiber_queue;
                 sch->current_fiber = &queue->head->fiber;
                 queue->len--;
                 if (queue->len >= 0) {

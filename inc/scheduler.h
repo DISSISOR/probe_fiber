@@ -11,7 +11,7 @@ struct FiberListNode {
     struct Fiber fiber;
 };
 
-struct FiberList {
+struct FiberQueue {
     struct FiberListNode *head;
     struct FiberListNode *tail;
     ptrdiff_t len;
@@ -20,7 +20,7 @@ struct FiberList {
 struct Scheduler {
     struct ExecutionContext ctx;
     struct Fiber *current_fiber;
-    struct FiberList fiber_queue;
+    struct FiberQueue fiber_queue;
     struct Fiber **terminated;
     size_t terminated_count;
     size_t terminated_cap;
