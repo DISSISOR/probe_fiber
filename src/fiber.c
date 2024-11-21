@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <assert.h>
 
 #include "common.h"
 #include "execution_context.h"
@@ -24,14 +25,14 @@ struct FullContext {
 
 struct StackPool stack_pool;
 
-[[noreturn]]
+[[ _Noreturn ]]
 static void proxy_ctx_switch() {
     struct Scheduler *const sch = get_current_scheduler();
     sch->current_fiber->procedure(sch->current_fiber->data);
     sch->current_fiber->state = FiberStateTerminated;
     stack_pool_return_stack(&stack_pool, sch->current_fiber->stack_view);
     execution_context_switch(&sch->current_fiber->ctx, &sch->ctx, NULL);
-    unreachable();
+    UNREACHABLE();
 }
 
 static inline struct FiberListNode* fiber_get_node(const struct Fiber *fiber) {
@@ -107,7 +108,7 @@ void fiber_run(fiberCode code, void *data) {
                 }
                 break;
             case FiberStateRunning:
-                unreachable();
+                UNREACHABLE();
                 break;
             case FiberStateTerminated:
                 if (sch->terminated_cap <= sch->terminated_count) {
@@ -130,7 +131,8 @@ void fiber_run(fiberCode code, void *data) {
                 }
                 break;
             default:
-                unreachable();
+                // unreachable();
+                assert(0 && "Unreachable");
         }
         execution_context_switch(&sch->ctx, &sch->current_fiber->ctx, sch->current_fiber->data);
     }

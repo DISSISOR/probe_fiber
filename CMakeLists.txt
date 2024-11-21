@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.20)
 project(fibers C ASM)
 
-set (CMAKE_C_STANDARD 23)
+set (CMAKE_C_STANDARD 99)
 
 file(GLOB fibers_src
     src/main.c
@@ -16,6 +16,5 @@ include_directories(inc)
 if(CMAKE_BUILD_TYPE STREQUAL Debug)
     add_compile_options (-g)
 endif()
-
 
 add_executable(fibers_bin ${fibers_src})

@@ -14,7 +14,7 @@ int main(int argc, char **argv) {
     (void) argv;
     int res[RES_SIZE] = { 0, };
 #if 0
-    for (size_t i=0; i<10'000; i++) {
+    for (size_t i=0; i<10000; i++) {
         res[0] = res[1] = res[2] = res[3] = res[4] = 0;
         res_idx = 0;
         fiber_run(fst_fiber_code, res);
@@ -45,7 +45,7 @@ static void fst_fiber_code(void *payload) {
 }
 
 static void snd_fiber_code(void *payload) {
-    int *res = (int*)payload;
+    int *const res = (int*)payload;
     res[res_idx++] = 1;
     fiber_yield();
     res[res_idx++] = 3;
