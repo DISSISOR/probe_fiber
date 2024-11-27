@@ -29,7 +29,7 @@ struct FiberJoinHandle {
 
 void fiber_yield(void);
 int fiber_run(fiberCode code, void *data);
-struct FiberJoinHandle fiber_add(fiberCode code, void* data);
+int fiber_add(struct FiberJoinHandle *handle, fiberCode code, void* data);
 void fiber_join(struct FiberJoinHandle handle);
 
 #endif // FIBER_H_INCLUDED

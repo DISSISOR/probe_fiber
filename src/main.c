@@ -34,11 +34,13 @@ int main(int argc, char **argv) {
 
 static void fst_fiber_code(void *payload) {
     int *res = (int*)payload;
-    struct FiberJoinHandle snd = fiber_add(snd_fiber_code, payload);
+    struct FiberJoinHandle snd;
+    fiber_add(&snd, snd_fiber_code, payload);
     res[res_idx++] = 0;
     fiber_yield();
     res[res_idx++] = 2;
-    struct FiberJoinHandle trd = fiber_add(trd_fiber_code, payload);
+    struct FiberJoinHandle trd;
+    fiber_add(&trd, trd_fiber_code, payload);
 
     fiber_join(snd);
     fiber_join(trd);

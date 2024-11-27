@@ -92,7 +92,7 @@ int fiber_run(fiberCode code, void *data) {
     sch->terminated_cap = 100;
     sch->terminated = malloc(sch->terminated_cap * sizeof(sch->terminated[0]));
     if (NULL == sch->terminated) {
-        exit(1);
+        return ENOMEM;
     }
     // reschedule(sch, sch->current_fiber);
     execution_context_switch(&sch->ctx, &sch->current_fiber->ctx, &sch->current_fiber->data);
@@ -118,7 +118,7 @@ int fiber_run(fiberCode code, void *data) {
                     sch->terminated_cap *= 2;
                     struct Fiber** tmp = realloc(sch->terminated, sch->terminated_cap * sizeof(tmp[0]));
                     if (NULL == tmp) {
-                        exit(1);
+                        return ENOMEM;
                     }
                     sch->terminated = tmp;
                 }
@@ -150,11 +150,11 @@ int fiber_run(fiberCode code, void *data) {
     return 0;
 }
 
-struct FiberJoinHandle fiber_add(fiberCode code, void* data) {
+int fiber_add(struct FiberJoinHandle *handle, fiberCode code, void* data) {
     struct Scheduler *const sch = get_current_scheduler();
     struct FiberListNode *node = malloc(sizeof(node[0]));
     if (NULL == node) {
-        exit(1);
+        return ENOMEM;
     };
     node->fiber.stack_view = stack_pool_get_stack(&stack_pool);
     void *stack_base = (char*)node->fiber.stack_view.stack + node->fiber.stack_view.size;
@@ -167,9 +167,10 @@ struct FiberJoinHandle fiber_add(fiberCode code, void* data) {
     void *ret_addr = stack_base - 16;
     * (( void(**)(void) ) ret_addr) = proxy_ctx_switch;
     struct FiberListNode* new_node = reschedule(sch, &node->fiber);
-    return (struct FiberJoinHandle){
-        .fiber = &new_node->fiber,
-    };
+    // return (struct FiberJoinHandle){
+    //     .fiber = &new_node->fiber,
+    // };
+    handle->fiber = &new_node->fiber;
 }
 
 void fiber_join(struct FiberJoinHandle handle) {
