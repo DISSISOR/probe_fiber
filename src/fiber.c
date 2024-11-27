@@ -25,8 +25,7 @@ struct FullContext {
 
 struct StackPool stack_pool;
 
-[[ _Noreturn ]]
-static void proxy_ctx_switch() {
+_Noreturn static void proxy_ctx_switch() {
     struct Scheduler *const sch = get_current_scheduler();
     sch->current_fiber->procedure(sch->current_fiber->data);
     sch->current_fiber->state = FiberStateTerminated;
