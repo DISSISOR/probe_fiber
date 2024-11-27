@@ -2,6 +2,7 @@
 
 #include <stddef.h>
 #include <stdlib.h>
+#include <errno.h>
 #include <sys/mman.h>
 #include <assert.h>
 
@@ -58,12 +59,15 @@ static inline struct FiberListNode* reschedule(struct Scheduler *sch, struct Fib
     return node;
 }
 
-void fiber_run(fiberCode code, void *data) {
+int fiber_run(fiberCode code, void *data) {
     struct Scheduler *const sch = get_current_scheduler();
-    stack_pool = stack_pool_init(100, 100, 2*1024);
+    int err = stack_pool_init(&stack_pool, 100, 100, 2*1024);
+    if (err != 0) {
+        return err;
+    }
     struct FiberListNode *node = malloc(sizeof(node[0]));
     if (NULL == node) {
-        exit(1);
+        return ENOMEM;
     };
     node->fiber.stack_view = stack_pool_get_stack(&stack_pool);
     void *stack_base = (char*)node->fiber.stack_view.stack + node->fiber.stack_view.size;
@@ -143,6 +147,7 @@ void fiber_run(fiberCode code, void *data) {
     }
     free(sch->terminated);
     stack_pool_deinit(&stack_pool);
+    return 0;
 }
 
 struct FiberJoinHandle fiber_add(fiberCode code, void* data) {

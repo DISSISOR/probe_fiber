@@ -18,7 +18,7 @@ struct StackPool {
     struct StackDynArr vacant;
 };
 
-struct StackPool stack_pool_init(size_t initial_cnt, size_t initial_cap, size_t stack_size);
+int stack_pool_init(struct StackPool *pool, size_t initial_cnt, size_t initial_cap, size_t stack_size);
 void stack_pool_deinit(struct StackPool *pool);
 struct StackView stack_pool_get_stack(struct StackPool *pool);
 void stack_pool_return_stack(struct StackPool *pool, struct StackView stack);

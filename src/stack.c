@@ -4,18 +4,20 @@
 #include <stdio.h>
 #include <assert.h>
 #include <sys/mman.h>
+#include <errno.h>
+#include <string.h>
 
-static void stack_dyn_arr_add(struct StackDynArr *arr, struct StackView stack) {
+static int stack_dyn_arr_add(struct StackDynArr *arr, struct StackView stack) {
     if (arr->cap <= arr->cnt) {
         arr->cap *= 2;
         struct StackView  *const tmp = realloc(arr->stacks, arr->cap * sizeof(arr->stacks[0]));
         if (!tmp) {
-            perror("allocation");
-            exit(1);
+            return ENOMEM;
         }
         arr->stacks = tmp;
     }
     arr->stacks[arr->cnt++] = stack;
+    return 0;
 }
 
 static inline struct StackView stack_view_alloc(size_t size) {
@@ -39,23 +41,20 @@ void stack_pool_return_stack(struct StackPool *pool, struct StackView stack) {
     stack_dyn_arr_add(&pool->vacant, stack);
 }
 
-struct StackPool stack_pool_init(size_t initial_cnt, size_t initial_cap, size_t stack_size) {
+int stack_pool_init(struct StackPool *pool, size_t initial_cnt, size_t initial_cap, size_t stack_size) {
     assert(initial_cap >= initial_cnt);
-    struct StackPool ret_val = {
-        .vacant = {
-            .cap = initial_cap,
-            .cnt = initial_cnt,
-        }
-    };
-    ret_val.vacant.stacks = malloc(sizeof(ret_val.vacant.stacks[0]) * ret_val.vacant.cap);
-    if (ret_val.vacant.stacks == NULL) {
+    memset(pool, 0, sizeof(pool[0]));
+    pool->vacant.cap = initial_cap;
+    pool->vacant.cnt = initial_cnt;
+    pool->vacant.stacks = malloc(sizeof(pool->vacant.stacks[0]) * pool->vacant.cap);
+    if (pool->vacant.stacks == NULL) {
         perror("allocation");
-        exit(1);
+        return ENOMEM;
     }
-    for (size_t i=0; i < ret_val.vacant.cnt; i++) {
-        ret_val.vacant.stacks[i] = stack_view_alloc(stack_size);
+    for (size_t i=0; i < pool->vacant.cnt; i++) {
+        pool->vacant.stacks[i] = stack_view_alloc(stack_size);
     }
-    return ret_val;
+    return 0;
 }
 
 void stack_pool_deinit(struct StackPool *pool) {
