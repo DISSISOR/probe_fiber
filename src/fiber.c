@@ -19,11 +19,6 @@ void fiber_yield(void) {
     return;
 }
 
-struct FullContext {
-    void *rsp, *rbx, *rbp, *r12, *r13, *r14, *r15;
-    void *rip;
-};
-
 struct StackPool stack_pool;
 
 _Noreturn static void proxy_ctx_switch() {

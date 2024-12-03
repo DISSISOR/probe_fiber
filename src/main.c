@@ -1,59 +1,34 @@
 #include <stdio.h>
 
-#include "fiber.h"
+#include "stack.h"
+#include "coro.h"
 
 static int res_idx = 0;
 enum { RES_SIZE = 5 };
 
-static void fst_fiber_code(void *payload);
-static void snd_fiber_code(void *payload);
-static void trd_fiber_code(void *payload);
+static void fst_coro_code(void *payload, struct Coro *coro);
 
 int main(int argc, char **argv) {
     (void) argc;
     (void) argv;
-    int res[RES_SIZE] = { 0, };
-#if 0
-    for (size_t i=0; i<10000; i++) {
-        res[0] = res[1] = res[2] = res[3] = res[4] = 0;
-        res_idx = 0;
-        fiber_run(fst_fiber_code, res);
+    int res;
+    struct Coro fst_coro;
+    struct StackPool stack_pool;
+    stack_pool_init(&stack_pool, 10, 10, 200);
+    coro_init(&fst_coro, fst_coro_code, &stack_pool, &res);
+    int c = getc(stdin);
+    while ( c != EOF && c != 'q') {
+        coro_resume(&fst_coro);
+        printf("%d\n", res);
+        c = getc(stdin);
     }
-#else
-    fiber_run(fst_fiber_code, res);
-    for (int i=0; i < RES_SIZE; i++) {
-        if (res[i] != i) {
-            fprintf(stderr, "WRONG: res[%d]=%d\n", i, res[i]);
-        } else {
-            fprintf(stdout, "res[%d]=%d\n", i, res[i]);
-        }
-    }
-#endif
     return 0;
 }
 
-static void fst_fiber_code(void *payload) {
-    int *res = (int*)payload;
-    struct FiberJoinHandle snd;
-    fiber_add(&snd, snd_fiber_code, payload);
-    res[res_idx++] = 0;
-    fiber_yield();
-    res[res_idx++] = 2;
-    struct FiberJoinHandle trd;
-    fiber_add(&trd, trd_fiber_code, payload);
-
-    fiber_join(snd);
-    fiber_join(trd);
-}
-
-static void snd_fiber_code(void *payload) {
-    int *const res = (int*)payload;
-    res[res_idx++] = 1;
-    fiber_yield();
-    res[res_idx++] = 3;
-}
-
-static void trd_fiber_code(void *payload) {
-    int *res = (int*)payload;
-    res[res_idx++] = 4;
+static void fst_coro_code(void *payload, struct Coro *coro) {
+    int n;
+    for (;;) {
+        *((int*)payload) = n++;
+        coro_yield(coro);
+    }
 }
