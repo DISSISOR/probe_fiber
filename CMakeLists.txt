@@ -5,11 +5,11 @@ set (CMAKE_C_STANDARD 99)
 
 file(GLOB fibers_src
     src/main.c
-    src/fiber.c
-    src/scheduler.c
     src/stack.c
+    src/coro.c
     src/execucion_context_switch.S
 )
+
 include_directories(inc)
 
 # add_compile_options(-Wall -Wextra -Wpedantic -Werror -Wno-deprecated-declarations)

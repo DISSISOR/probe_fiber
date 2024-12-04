@@ -7,11 +7,12 @@ struct Coro;
 struct StackView;
 struct StackPool;
 
-typedef void (*CoroCode)(void*, struct Coro *coro);
+typedef void (*CoroCode)(struct Coro *coro);
 
 struct Coro {
     struct ExecutionContext ctx; // own context when suspended OR caller context when resumed
     struct StackPool *stack_pool; // unowned
+    CoroCode code;
     enum CORO_STATE {
         CORO_STATE_SUSPENDED,
         CORO_STATE_FINISHED
